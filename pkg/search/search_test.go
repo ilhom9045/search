@@ -24,7 +24,7 @@ var root = context.Background()
 func BenchmarkAny(b *testing.B) {
 	var ctx, cancel = context.WithCancel(root)
 	for i := 0; i < b.N; i++ {
-		_=<-Any(ctx, "2;", files)
+		_ = <-All(ctx, "2;", files)
 		cancel()
 	}
 }

@@ -25,42 +25,47 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 	ch := make(chan []Result)
 	defer close(ch)
 	result := make([]Result, part)
+	ctx, cancel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
 		wg.Add(1)
-		go func(val int) {
-			defer wg.Done()
-			file, err := os.Open(files[val])
-			if err != nil {
+		go func(ctx context.Context, val int) {
+			select {
+			case <-ctx.Done():
 				return
+			default:
+
+				defer wg.Done()
+				file, err := os.Open(files[val])
+				if err != nil {
+					return
+				}
+				defer func() {
+					if cerr := file.Close(); cerr != nil {
+						log.Print(cerr)
+					}
+				}()
+				reader := bufio.NewReader(file)
+				lineNum := 1
+				for {
+					line, _, err := reader.ReadLine()
+					if err != nil || len(line) == 0 {
+						break
+					}
+					if strings.Contains(string(line), phrase) {
+						res := Result{}
+						colNum := strings.Index(string(line), phrase)
+						res.ColNum = int64(colNum)
+						result[val] = res
+					}
+					lineNum++
+				}
 			}
-			defer func() {
-				if cerr := file.Close(); cerr != nil {
-					log.Print(cerr)
-				}
-			}()
-			reader := bufio.NewReader(file)
-			lineNum := 1
-			for {
-				line, _, err := reader.ReadLine()
-				if err != nil || len(line) == 0 {
-					break
-				}
-				if strings.Contains(string(line), phrase) {
-					res := Result{}
-					colNum := strings.Index(string(line), phrase)
-					res.Phrase = phrase
-					res.ColNum = int64(colNum)
-					res.Line = string(line)
-					res.LineNum = int64(lineNum)
-					result[val] = res
-				}
-				lineNum++
-			}
-		}(i)
+		}(ctx, i)
 	}
-	ch <- result
 	wg.Wait()
+	ch <- result
+	cancel()
 	return ch
 }
 
@@ -70,7 +75,6 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	defer close(ch)
 	for i := 0; i < part; i++ {
 		go func(ctx context.Context, fileOpen string, phrase string, c chan<- Result) {
-			//defer wg.Done()
 			select {
 			case <-ctx.Done():
 				return
