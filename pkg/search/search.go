@@ -21,9 +21,12 @@ type Result struct {
 }
 
 func All(ctx context.Context, phrase string, files []string) <-chan []Result {
-	part := len(files)
+	if len(files) == 0 {
+		return nil
+	}
 	ch := make(chan []Result)
 	defer close(ch)
+	part := len(files)
 	result := make([]Result, part)
 	ctx, cancel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
