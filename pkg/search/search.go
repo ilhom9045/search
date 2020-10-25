@@ -34,7 +34,6 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 			case <-ctx.Done():
 				return
 			default:
-
 				defer wg.Done()
 				file, err := os.Open(files[val])
 				if err != nil {
@@ -60,11 +59,12 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 					}
 					lineNum++
 				}
+				ch <- result
 			}
 		}(ctx, i)
 	}
 	wg.Wait()
-	ch <- result
+	<-ch
 	cancel()
 	return ch
 }
