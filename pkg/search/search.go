@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 type Result struct {
@@ -20,45 +21,25 @@ type Result struct {
 }
 
 func All(ctx context.Context, phrase string, files []string) <-chan []Result {
-	if files == nil {
-		return nil
-	}
 	part := len(files)
-	ch := make(chan []Result, 1)
-	var result []Result
+	ch := make(chan []Result)
+	ctx, cansel := context.WithCancel(ctx)
+	wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
-		select {
-		case <-ctx.Done():
-			continue
-		default:
-			file, err := os.Open(files[i])
-			if err != nil {
-				continue
+		wg.Add(1)
+		go func(ctx context.Context, file string, val int, c chan<- []Result) {
+			defer wg.Done()
+			if results := ReadFile(file, phrase); len(results) > 0 {
+				log.Print(files[val])
+				c <- results
 			}
-			defer func() {
-				if cerr := file.Close(); cerr != nil {
-					log.Print(cerr)
-				}
-			}()
-			reader := bufio.NewReader(file)
-			lines := ""
-			for {
-				line, _, err := reader.ReadLine()
-				if err != nil || len(line) == 0 {
-					break
-				}
-				lines += string(line)
-			}
-			index := int64(strings.Index(lines, phrase))
-
-			if index != -1 {
-				result = append(result, Result{ColNum: index})
-			}
-		}
+		}(ctx, files[i], i, ch)
 	}
-
-	log.Print(result)
-	ch <- result
+	go func() {
+		defer close(ch)
+		wg.Wait()
+	}()
+	cansel()
 	return ch
 }
 
@@ -112,11 +93,10 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	return ch
 }
 
-func ReadFile(f string, phrase string) (Result, error) {
-	result := Result{}
+func ReadFile(f string, phrase string) (results []Result) {
 	file, err := os.Open(f)
 	if err != nil {
-		return result, err
+		return results
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {
@@ -131,14 +111,14 @@ func ReadFile(f string, phrase string) (Result, error) {
 			break
 		}
 		if strings.Contains(string(line), phrase) {
-			colNum := strings.Index(string(line), phrase)
-			result.Phrase = phrase
-			result.ColNum = int64(colNum)
-			result.Line = string(line)
-			result.LineNum = int64(lineNum)
-			return result, nil
+			results = append(results, Result{
+				Phrase:  phrase,
+				Line:    string(line),
+				LineNum: int64(lineNum),
+				ColNum:  int64(strings.Index(string(line), phrase) + 1),
+			})
 		}
 		lineNum++
 	}
-	return result, err
+	return results
 }

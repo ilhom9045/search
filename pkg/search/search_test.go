@@ -6,22 +6,6 @@ import (
 	"testing"
 )
 
-func BenchmarkAny(b *testing.B) {
-	ctx := context.Background()
-	files := []string{
-		"import.txt",
-		"import.txt",
-		"import.txt",
-		"import.txt",
-		"import.txt",
-		"import.txt",
-		"export.txt",
-		"export.txt",
-		"export.txt",
-		"export.txt",
-		"export.txt",
-		"export.txt",
-		"export.txt",
-	}
-	log.Println(<-All(ctx, "2;", files))
+func TestAll(t *testing.T) {
+	log.Println(<-All(context.Background(), "2;", []string{"export.txt"}))
 }
