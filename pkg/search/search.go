@@ -80,6 +80,7 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 						ColNum:  int64(strings.Index(value, phrase) + 1),
 					}
 					ch <- result
+					break
 				}
 			}
 
