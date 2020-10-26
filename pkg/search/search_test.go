@@ -7,5 +7,10 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	log.Println(<-All(context.Background(), "2;", []string{"export.txt"}))
+	ch := All(context.Background(), "2;", []string{"../../data/export.txt"})
+	read, ok := <-ch
+	if !ok {
+		t.Error(ok)
+	}
+	log.Println(read)
 }

@@ -1,10 +1,9 @@
 package search
 
 import (
-	"bufio"
 	"context"
+	"io/ioutil"
 	"log"
-	"os"
 	"strings"
 	"sync"
 )
@@ -21,104 +20,62 @@ type Result struct {
 }
 
 func All(ctx context.Context, phrase string, files []string) <-chan []Result {
-	part := len(files)
 	ch := make(chan []Result)
-	ctx, cansel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
-	for i := 0; i < part; i++ {
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	for i := 0; i < len(files); i++ {
 		wg.Add(1)
-		go func(ctx context.Context, file string, val int, c chan<- []Result) {
+
+		go func(ctx context.Context, filename string, i int, ch chan<- []Result) {
+
 			defer wg.Done()
-			if results := ReadFile(file, phrase); len(results) > 0 {
-				log.Print(files[val])
-				c <- results
+
+			res := FindAllMatchTextInFile(phrase, filename)
+
+			if len(res) > 0 {
+				ch <- res
 			}
+
 		}(ctx, files[i], i, ch)
 	}
+
 	go func() {
 		defer close(ch)
 		wg.Wait()
+
 	}()
-	cansel()
+
+	cancel()
 	return ch
 }
 
-func Any(ctx context.Context, phrase string, files []string) <-chan Result {
-	if files == nil {
-		return nil
-	}
-	part := len(files)
-	ch := make(chan Result, part)
-	//defer close(ch)
-	//ctxx, cansel := context.WithCancel(ctx)
-	for i := 0; i < part; i++ {
-		go func(ctx1 context.Context, fileOpen string, phrase string, c chan<- Result) {
-			select {
-			case <-ctx1.Done():
-				return
-			default:
-				file, err := os.Open(fileOpen)
-				if err != nil {
-					return
-				}
-				defer func() {
-					if cerr := file.Close(); cerr != nil {
-						log.Print(cerr)
-					}
-				}()
-				reader := bufio.NewReader(file)
-				lineNum := 1
-				for {
-					line, _, err := reader.ReadLine()
-					if err != nil || len(line) == 0 {
-						break
-					}
-					if strings.Contains(string(line), phrase) {
-						result := Result{}
-						colNum := strings.Index(string(line), phrase)
-						result.Phrase = phrase
-						result.ColNum = int64(colNum)
-						result.Line = string(line)
-						result.LineNum = int64(lineNum)
-						c <- result
-						break
-					}
-					lineNum++
-				}
-			}
-		}(ctx, files[i], phrase, ch)
-	}
-	//<-ch
-	//cansel()
-	return ch
-}
+func FindAllMatchTextInFile(phrase, fileName string) (res []Result) {
 
-func ReadFile(f string, phrase string) (results []Result) {
-	file, err := os.Open(f)
+	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return results
+		log.Println("error not opened file err => ", err)
+		return res
 	}
-	defer func() {
-		if cerr := file.Close(); cerr != nil {
-			log.Print(cerr)
-		}
-	}()
-	reader := bufio.NewReader(file)
-	lineNum := 1
-	for {
-		line, _, err := reader.ReadLine()
-		if err != nil || len(line) == 0 {
-			break
-		}
-		if strings.Contains(string(line), phrase) {
-			results = append(results, Result{
+
+	file := string(data)
+
+	temp := strings.Split(file, "\n")
+
+	for i, line := range temp {
+		if strings.Contains(line, phrase) {
+
+			r := Result{
 				Phrase:  phrase,
-				Line:    string(line),
-				LineNum: int64(lineNum),
-				ColNum:  int64(strings.Index(string(line), phrase) + 1),
-			})
+				Line:    line,
+				LineNum: int64(i + 1),
+				ColNum:  int64(strings.Index(line, phrase)) + 1,
+			}
+
+			res = append(res, r)
 		}
-		lineNum++
 	}
-	return results
+
+	return res
 }
