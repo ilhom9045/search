@@ -21,50 +21,44 @@ type Result struct {
 
 func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 	if files == nil {
-		log.Println("Nil")
 		return nil
 	}
 	part := len(files)
 	ch := make(chan []Result, 1)
 	var result []Result
-	ctxx, cancel := context.WithCancel(ctx)
 	for i := 0; i < part; i++ {
-		go func(ctx context.Context, val int) {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				file, err := os.Open(files[val])
-				if err != nil {
-					return
-				}
-				defer func() {
-					if cerr := file.Close(); cerr != nil {
-						log.Print(cerr)
-					}
-				}()
-				reader := bufio.NewReader(file)
-				lineNum := 1
-				for {
-					line, _, err := reader.ReadLine()
-					if err != nil || len(line) == 0 {
-						break
-					}
-					if strings.Contains(string(line), phrase) {
-						res := Result{}
-						colNum := strings.Index(string(line), phrase)
-						res.ColNum = int64(colNum)
-						result = append(result, res)
-						break
-					}
-					lineNum++
-				}
+		select {
+		case <-ctx.Done():
+			continue
+		default:
+			file, err := os.Open(files[i])
+			if err != nil {
+				continue
 			}
-		}(ctxx, i)
-		ch <- result
+			defer func() {
+				if cerr := file.Close(); cerr != nil {
+					log.Print(cerr)
+				}
+			}()
+			reader := bufio.NewReader(file)
+			lines := ""
+			for {
+				line, _, err := reader.ReadLine()
+				if err != nil || len(line) == 0 {
+					break
+				}
+				lines += string(line)
+			}
+			index := int64(strings.Index(lines, phrase))
+
+			if index != -1 {
+				result = append(result, Result{ColNum: index})
+			}
+		}
 	}
-	<-ch
-	cancel()
+
+	log.Print(result)
+	ch <- result
 	return ch
 }
 

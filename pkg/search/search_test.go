@@ -23,5 +23,5 @@ func BenchmarkAny(b *testing.B) {
 		"export.txt",
 		"export.txt",
 	}
-	log.Println(<-Any(ctx, "2;", files))
+	log.Println(<-All(ctx, "2;", files))
 }
