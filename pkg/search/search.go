@@ -55,7 +55,7 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 		return nil
 	}
 	part := len(files)
-	ch := make(chan Result, part)
+	ch := make(chan Result)
 	ctx, cansel := context.WithCancel(ctx)
 	wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
