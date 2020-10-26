@@ -7,7 +7,7 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	ch := All(context.Background(), "2;", []string{"../../data/export.txt"})
+	ch := Any(context.Background(), "2;", []string{"../../data/export.txt","../../data/export.txt"})
 	read, ok := <-ch
 	if !ok {
 		t.Error(ok)

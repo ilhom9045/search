@@ -56,19 +56,40 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 	}
 	part := len(files)
 	ch := make(chan Result, part)
-	//defer close(ch)
-	//ctxx, cansel := context.WithCancel(ctx)
+	ctx, cansel := context.WithCancel(ctx)
+	wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
+		wg.Add(1)
 		go func(ctx1 context.Context, fileOpen string, phrase string, c chan<- Result) {
+			defer wg.Done()
 			select {
-			case <-ctx1.Done():
+			case <-ctx.Done():
+			}
+			text, err := ioutil.ReadFile(fileOpen)
+			if err != nil {
 				return
-			default:
+			}
+			lines := strings.Split(string(text), "\n")
 
+			for index, value := range lines {
+				if strings.Contains(value, phrase) {
+					result := Result{
+						Line:    value,
+						LineNum: int64(index + 1),
+						Phrase:  phrase,
+						ColNum:  int64(strings.Index(value, phrase) + 1),
+					}
+					ch <- result
 				}
+			}
+
 		}(ctx, files[i], phrase, ch)
 	}
-
+	go func() {
+		defer close(ch)
+		wg.Wait()
+	}()
+	cansel()
 	return ch
 }
 
