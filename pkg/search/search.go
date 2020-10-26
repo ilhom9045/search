@@ -26,17 +26,12 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 	}
 	part := len(files)
 	ch := make(chan []Result, 1)
-	//defer close(ch)
 	var result []Result
 	ctxx, cancel := context.WithCancel(ctx)
-	//wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
-		//wg.Add(1)
 		go func(ctx context.Context, val int) {
-			//defer wg.Done()
 			select {
 			case <-ctx.Done():
-				log.Println("Done")
 				return
 			default:
 				file, err := os.Open(files[val])
@@ -59,18 +54,15 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 						res := Result{}
 						colNum := strings.Index(string(line), phrase)
 						res.ColNum = int64(colNum)
-						log.Println(files[val])
 						result = append(result, res)
 						break
 					}
 					lineNum++
 				}
-				ch <- result
 			}
 		}(ctxx, i)
+		ch <- result
 	}
-	//wg.Wait()
-	//close(ch)
 	<-ch
 	cancel()
 	return ch
@@ -88,7 +80,6 @@ func Any(ctx context.Context, phrase string, files []string) <-chan Result {
 		go func(ctx1 context.Context, fileOpen string, phrase string, c chan<- Result) {
 			select {
 			case <-ctx1.Done():
-				log.Println("done")
 				return
 			default:
 				file, err := os.Open(fileOpen)
