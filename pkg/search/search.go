@@ -50,6 +50,27 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 	cancel()
 	return ch
 }
+func Any(ctx context.Context, phrase string, files []string) <-chan Result {
+	if files == nil {
+		return nil
+	}
+	part := len(files)
+	ch := make(chan Result, part)
+	//defer close(ch)
+	//ctxx, cansel := context.WithCancel(ctx)
+	for i := 0; i < part; i++ {
+		go func(ctx1 context.Context, fileOpen string, phrase string, c chan<- Result) {
+			select {
+			case <-ctx1.Done():
+				return
+			default:
+
+				}
+		}(ctx, files[i], phrase, ch)
+	}
+
+	return ch
+}
 
 func FindAllMatchTextInFile(phrase, fileName string) (res []Result) {
 
