@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkAny(b *testing.B) {
-	root, cansel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	files := []string{
 		"import.txt",
 		"import.txt",
@@ -23,6 +23,5 @@ func BenchmarkAny(b *testing.B) {
 		"export.txt",
 		"export.txt",
 	}
-	log.Println(<-All(root, "2;", files))
-	cansel()
+	log.Println(<-All(ctx, "2;", files))
 }

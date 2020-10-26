@@ -28,7 +28,7 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 	ch := make(chan []Result, 1)
 	//defer close(ch)
 	var result []Result
-	//ctx, cancel := context.WithCancel(ctx)
+	ctxx, cancel := context.WithCancel(ctx)
 	//wg := sync.WaitGroup{}
 	for i := 0; i < part; i++ {
 		//wg.Add(1)
@@ -67,10 +67,12 @@ func All(ctx context.Context, phrase string, files []string) <-chan []Result {
 				}
 				ch <- result
 			}
-		}(ctx, i)
+		}(ctxx, i)
 	}
 	//wg.Wait()
 	//close(ch)
+	<-ch
+	cancel()
 	return ch
 }
 
